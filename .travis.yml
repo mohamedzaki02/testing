@@ -1,0 +1,63 @@
+language: generic
+sudo: required
+services:
+  - docker
+  - postgresql
+
+before_install:
+  - docker build -t mmzaki/client-test -f ./client/Dockerfile.dev ./client
+
+# we do not need two DBs to be created now in this level
+# but, in a more comple scenario ... we might need our DBs up & running
+before_script:
+  - psql -c 'create database customers_db;' -U postgres
+  - psql -c 'create database vehicles_db;' -U postgres
+
+env:
+  global:
+    - CUSTOMER_PG_HOST=postgres
+    - CUSTOMER_PG_DB=customers_db
+    - CUSTOMER_PG_USER=postgres
+    - CUSTOMER_PG_PASS=postgres
+    - CUSTOMER_PG_PORT=5432
+    - VEHICLE_PG_HOST=postgres
+    - VEHICLE_PG_DB=vehicles_db
+    - VEHICLE_PG_USER=postgres
+    - VEHICLE_PG_PASS=postgres
+    - VEHICLE_PG_PORT=5435
+
+script:
+  - docker run -e CI=true mmzaki/client-test npm run test -- --coverage
+
+after_success:
+  - docker build -t mmzaki/client-aws ./client
+  - docker build -t mmzaki/nginx-aws ./nginx
+  - docker build -t mmzaki/subscriber-aws ./subscriber
+  - docker build -t mmzaki/worker-aws ./worker
+  - docker build -t mmzaki/customer-aws ./customer
+  - docker build -t mmzaki/vehicle-aws ./vehicle
+  - docker build -t mmzaki/monitor-aws ./monitor
+
+  # login to docker hub before pushing the images
+  - echo "$DOCKER_PASS" | docker login -u "$DOCKER_ID" --password-stdin
+
+  - docker push mmzaki/client-aws
+  - docker push mmzaki/nginx-aws
+  - docker push mmzaki/subscriber-aws
+  - docker push mmzaki/worker-aws
+  - docker push mmzaki/customer-aws
+  - docker push mmzaki/vehicle-aws
+  - docker push mmzaki/monitor-aws
+
+deploy:
+  edge: true
+  provider: elasticbeanstalk
+  region: "us-east-2"
+  app: "multi-docker"
+  env: "MultiDocker-env"
+  bucket_name: "elasticbeanstalk-us-east-2-875906334048"
+  bucket_path: "multi-docker"
+  on:
+    branch: master
+  access_key_id: $AWS_ACCESS_KEY
+  secret_access_key: $AWS_SECRET_KEY

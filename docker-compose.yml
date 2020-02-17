@@ -1,0 +1,109 @@
+version: "3"
+services:
+    redis:
+        image: "redis:latest"
+    postgress:
+        image: "postgres"
+        environment:
+            - POSTGRES_DB=postgres
+            - POSTGRES_USER=postgres
+            - POSTGRES_PASSWORD=postgres
+        ports:
+            - "5432:5432"
+    dynamodb:
+        image: amazon/dynamodb-local:latest
+        ports:
+            - "9000:9000"
+    customer:
+        depends_on:
+            - "postgress"
+            - "vehicle"
+        build:
+            context: ./customer
+            dockerfile: Dockerfile.dev
+        volumes:
+            - /app/node_modules
+            - ./customer:/app
+        ports:
+            - "5000:5000"
+        environment:
+            - CUSTOMER_PG_USER=postgres
+            - CUSTOMER_PG_HOST=postgress
+            - CUSTOMER_PG_DB=postgres
+            - CUSTOMER_PG_PASS=postgres
+            - CUSTOMER_PG_PORT=5432
+    # USING SAME POSTGRESS SERVICE CONFIGURATION - BUT, IN AWS WE USE TWO DIFFERENT DBs
+    vehicle:
+        depends_on:
+            - "postgress"
+            - "monitor"
+        build:
+            context: ./vehicle
+            dockerfile: Dockerfile.dev
+        volumes:
+            - /app/node_modules
+            - ./vehicle:/app
+        ports:
+            - "6000:6000"
+        environment:
+            - VEHICLE_PG_USER=postgres
+            - VEHICLE_PG_HOST=postgress
+            - VEHICLE_PG_DB=postgres
+            - VEHICLE_PG_PASS=postgres
+            - VEHICLE_PG_PORT=5432
+    monitor:
+        depends_on:
+            - "dynamodb"
+        build:
+            context: ./monitor
+            dockerfile: Dockerfile.dev
+        volumes:
+            - /app/node_modules
+            - ./monitor:/app
+        ports:
+            - "7000:7000"
+        environment:
+            - DYNAMO_ENDPOINT=http://dynamodb:9000
+            - DYNAMO_REGION=us-east-1
+            - DYNAMO_ACCESS_KEY=dummy,
+            - DYNAMO_SECRET_KEY=dummy,
+            - DYNAMO_TABLE=vehicles,
+            - REDIS_HOST=redis
+            - REDIS_PORT=6379
+    nginx:
+        depends_on:
+            - subscriber
+            - client
+        restart: always
+        build:
+            context: ./nginx
+            dockerfile: Dockerfile.dev
+        ports:
+            - "3050:80"
+    worker:
+        build:
+            context: ./worker
+            dockerfile: Dockerfile.dev
+        volumes:
+            - /app/node_modules
+            - ./worker:/app
+        environment:
+            - REDIS_HOST=redis
+            - REDIS_PORT=6379
+    client:
+        build:
+            context: ./client
+            dockerfile: Dockerfile.dev
+        volumes:
+            - /app/node_modules
+            - ./client:/app
+    subscriber:
+        build:
+            context: ./subscriber
+            dockerfile: Dockerfile.dev
+        volumes:
+            - /app/node_modules
+            - ./subscriber:/app
+        environment:
+            - REDIS_HOST=redis
+            - REDIS_PORT=6379

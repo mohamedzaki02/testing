@@ -1,0 +1,72 @@
+{
+    "AWSEBDockerrunVersion": 2,
+    "containerDefinitions": [
+        {
+            "name": "client",
+            "image": "mmzaki/client-aws",
+            "hostname": "client",
+            "essential": false,
+            "memory": 128
+        },
+        {
+            "name": "subscriber",
+            "image": "mmzaki/subscriber-aws",
+            "hostname": "subscriber",
+            "essential": false,
+            "memory": 128
+        },
+        {
+            "name": "worker",
+            "image": "mmzaki/worker-aws",
+            "hostname": "worker",
+            "essential": false,
+            "memory": 128
+        },
+        {
+            "name": "customer",
+            "image": "mmzaki/customer-aws",
+            "hostname": "customer",
+            "essential": false,
+            "links": [
+                "vehicle"
+            ],
+            "memory": 128
+        },
+        {
+            "name": "vehicle",
+            "image": "mmzaki/vehicle-aws",
+            "hostname": "vehicle",
+            "essential": false,
+            "links": [
+                "monitor"
+            ],
+            "memory": 128
+        },
+        {
+            "name": "monitor",
+            "image": "mmzaki/monitor-aws",
+            "hostname": "monitor",
+            "essential": false,
+            "memory": 128
+        },
+        {
+            "name": "nginx",
+            "image": "mmzaki/nginx-aws",
+            "hostname": "nginx",
+            "essential": true,
+            "portMappings": [
+                {
+                    "hostPort": 80,
+                    "containerPort": 80
+                }
+            ],
+            "links": [
+                "client",
+                "subscriber",
+                "customer",
+                "vehicle"
+            ],
+            "memory": 128
+        }
+    ]
+}
